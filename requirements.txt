@@ -1,0 +1,7 @@
+flask
+flask-cors
+requests
+Pillow
+torch
+git+https://github.com/openai/CLIP.git
+python-dotenv
