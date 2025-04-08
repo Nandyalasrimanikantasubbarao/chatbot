@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
@@ -12,13 +11,12 @@ import logging
 import json
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path='./env') 
+load_dotenv(dotenv_path='./env')
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})  
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 PRODUCT_API_URL = os.getenv("PRODUCT_API_URL")
-
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -28,14 +26,23 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model, preprocess = clip.load("ViT-B/32", device=device)
 
+# Lazy load CLIP model
+model = None
+preprocess = None
+
+def load_clip_model():
+    global model, preprocess
+    if model is None or preprocess is None:
+        logger.info("Loading CLIP model...")
+        model, preprocess = clip.load("ViT-B/32", device=device)
 
 product_embeddings = []
 
 def get_image_embedding(image_path_or_url):
     try:
- 
+        load_clip_model()
+
         if image_path_or_url.startswith(('http://', 'https://')):
             logger.debug(f"Processing URL: {image_path_or_url}")
             response = requests.get(image_path_or_url, timeout=10, stream=True)
@@ -46,7 +53,6 @@ def get_image_embedding(image_path_or_url):
             if not os.path.exists(image_path_or_url):
                 raise Exception(f"File not found: {image_path_or_url}")
             image = Image.open(image_path_or_url).convert("RGB")
-        
 
         image = preprocess(image).unsqueeze(0).to(device)
         with torch.no_grad():
@@ -60,14 +66,15 @@ def fetch_and_compute_product_embeddings():
     global product_embeddings
     product_embeddings = []
     try:
+        load_clip_model()
         response = requests.get(PRODUCT_API_URL, timeout=10)
         response.raise_for_status()
-        logger.debug(f"Raw response from /api/products: {response.text[:500]}...")  
-        data = json.loads(response.text)  
+        logger.debug(f"Raw response from /api/products: {response.text[:500]}...")
+        data = json.loads(response.text)
         if not isinstance(data, dict) or 'products' not in data:
             logger.error(f"Expected a dictionary with 'products' key, got {type(data)}")
             return
-        products = data['products'] 
+        products = data['products']
         if not isinstance(products, list):
             logger.error(f"Expected a list of products, got {type(products)}")
             return
@@ -82,7 +89,6 @@ def fetch_and_compute_product_embeddings():
         logger.info(f"Computed embeddings for {len(product_embeddings)} products")
     except Exception as e:
         logger.error(f"Error fetching products from PRODUCT_API_URL: {e}")
-
 
 fetch_and_compute_product_embeddings()
 
@@ -125,15 +131,13 @@ def upload_image():
         file.save(filepath)
         logger.info(f"Uploaded file saved to {filepath}")
 
-        # Get embedding for uploaded image (treat as local file)
         uploaded_emb = get_image_embedding(filepath)
-        os.remove(filepath)  # Clean up after processing
+        os.remove(filepath)
 
         if uploaded_emb is None:
             logger.error(f"Failed to process uploaded image from {filepath}")
             return jsonify({"error": "Failed to process uploaded image"}), 400
 
-        # Find the best match
         best_match = None
         highest_similarity = -1
 
@@ -144,7 +148,7 @@ def upload_image():
                 highest_similarity = similarity
                 best_match = product
 
-        if best_match and highest_similarity > 0.7:  # Threshold lowered to 0.7
+        if best_match and highest_similarity > 0.7:
             route = f"/product/{str(best_match['_id'])}"
             logger.info(f"Match found: {best_match['name']} with similarity {highest_similarity:.2f}")
             return jsonify({
