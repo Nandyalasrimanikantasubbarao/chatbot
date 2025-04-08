@@ -12,7 +12,7 @@ import logging
 import json
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path='../.env') 
+load_dotenv(dotenv_path='./env') 
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})  
