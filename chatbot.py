@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
@@ -11,7 +12,7 @@ import logging
 import json
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path='../.env') 
+load_dotenv(dotenv_path='./env') 
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})  
@@ -158,5 +159,5 @@ def upload_image():
     return jsonify({"error": "Invalid file"}), 400
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5001))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
