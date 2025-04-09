@@ -7,7 +7,7 @@ import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
-CORS(app, origins=["https://zithara-r64f.vercel.app"])
+CORS(app, supports_credentials=True)
 
 # Load precomputed embeddings
 with open("image_embeddings.pkl", "rb") as f:
