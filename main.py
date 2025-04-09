@@ -31,13 +31,12 @@ def chat():
 @app.route("/api/upload", methods=["POST"])
 def upload():
     file = request.files["image"]
-    embedding = np.load(io.BytesIO(file.read()))
-    
+    embedding = np.load(io.BytesIO(file.read()), allow_pickle=True)
+
     similarity = cosine_similarity([embedding], image_embeddings)
     best_match_idx = np.argmax(similarity)
     best_route = routes[best_match_idx]
 
     return jsonify({"reply": "Found a matching product!", "route": best_route})
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=4986)
