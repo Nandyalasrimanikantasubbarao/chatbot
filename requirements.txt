@@ -1,8 +1,7 @@
 flask
 flask-cors
-requests
+torch
 Pillow
-torch>=2.0.0
-clip-anytorch
-python-dotenv
+numpy
 scikit-learn
+openai-clip  # if using official repo from GitHub
