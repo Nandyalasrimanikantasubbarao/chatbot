@@ -50,5 +50,5 @@ def upload():
     return jsonify({"reply": "Found a matching product!", "route": best_route})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 4986))  # <- critical!
+    port = int(os.environ.get("PORT", 4988))  # <- critical!
     app.run(host="0.0.0.0", port=port)
