@@ -1,4 +1,3 @@
-import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
@@ -6,20 +5,18 @@ import numpy as np
 import clip
 import torch
 import pickle
-from sklearn.metrics.pairwise import cosine_similarity  # ✅ IMPORT THIS
 
 app = Flask(__name__)
 CORS(app)
 
 # Load model
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model, preprocess = clip.load("ViT-B/32", device=device)
+device = "cpu"
+model, preprocess = clip.load("RN50", device=device)
+
 
 # Load precomputed image embeddings
 with open("image_embeddings.pkl", "rb") as f:
-    data = pickle.load(f)
-    image_embeddings = data["embeddings"]   # shape: (n, 512)
-    routes = data["routes"]                 # list of routes (e.g., "/products/diamond_ring")
+    image_embeddings = pickle.load(f)
 
 # Rule-based chatbot logic
 pattern_responses = {
@@ -39,28 +36,23 @@ def chat():
 
     return jsonify({'reply': reply})
 
-@app.route("/api/upload", methods=["POST"])
+@app.route('/api/upload', methods=['POST'])
 def upload():
-    file = request.files["image"]
-    image = Image.open(file).convert("RGB")
-    image_input = preprocess(image).unsqueeze(0).to(device)
+    file = request.files['image']
+    image = preprocess(Image.open(file)).unsqueeze(0).to(device)
 
     with torch.no_grad():
-        image_features = model.encode_image(image_input)
+        query_embedding = model.encode_image(image).cpu().numpy()
 
-    image_features = image_features.cpu().numpy()  # shape (1, 512)
+    similarities = {
+        pid: np.dot(query_embedding, emb.T)[0][0]
+        for pid, emb in image_embeddings.items()
+    }
 
-    # ✅ Compute similarity
-    similarities = cosine_similarity(image_features, image_embeddings)  # both 512-d
-    best_match_index = np.argmax(similarities)
+    best_match = max(similarities, key=similarities.get)
+    product_route = f"/product/{best_match}"
 
-    # ✅ Get route
-    best_route = routes[best_match_index]
-
-    return jsonify({
-        "reply": "Here’s a similar product we found!",
-        "route": best_route
-    })
+    return jsonify({'route': product_route, 'reply': 'Found a matching product! Click below to view it:'})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
