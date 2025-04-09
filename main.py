@@ -16,9 +16,14 @@ routes = None
 try:
     with open("image_embeddings.pkl", "rb") as f:
         data = pickle.load(f)
-        image_embeddings = data["embeddings"]  # 2D NumPy array
-        routes = data["routes"]  # List of routes
-    logging.info("Successfully loaded image_embeddings.pkl")
+        image_embeddings = data["embeddings"]
+        # Correct shape from (n, 1, 512) to (n, 512)
+        if image_embeddings.ndim == 3 and image_embeddings.shape[1] == 1:
+            image_embeddings = image_embeddings.squeeze(1)
+        elif image_embeddings.ndim != 2:
+            raise ValueError(f"Invalid shape for image_embeddings: {image_embeddings.shape}")
+        routes = data["routes"]
+    logging.info(f"Successfully loaded image_embeddings.pkl with shape: {image_embeddings.shape}")
 except FileNotFoundError:
     logging.error("Error: image_embeddings.pkl not found.")
     raise
@@ -34,7 +39,14 @@ uploaded_embedding = None
 try:
     with open("uploaded_embedding.pkl", "rb") as f:
         uploaded_embedding = pickle.load(f)
-    logging.info("Successfully loaded uploaded_embedding.pkl")
+        # Ensure 2D shape (1, 512)
+        if uploaded_embedding.ndim == 1:
+            uploaded_embedding = uploaded_embedding.reshape(1, -1)
+        elif uploaded_embedding.ndim == 3 and uploaded_embedding.shape[1] == 1:
+            uploaded_embedding = uploaded_embedding.squeeze(1)
+        elif uploaded_embedding.shape != (1, 512):
+            raise ValueError(f"Invalid shape for uploaded_embedding: {uploaded_embedding.shape}")
+    logging.info(f"Successfully loaded uploaded_embedding.pkl with shape: {uploaded_embedding.shape}")
 except FileNotFoundError:
     logging.warning("Warning: uploaded_embedding.pkl not found. Using default.")
     uploaded_embedding = np.zeros((1, 512))  # Default embedding if file is missing
@@ -72,6 +84,7 @@ def upload():
         os.remove(filepath)
 
         # Use precomputed uploaded_embedding (for testing)
+        logging.info(f"uploaded_embedding shape: {uploaded_embedding.shape}, image_embeddings shape: {image_embeddings.shape}")
         similarity = cosine_similarity([uploaded_embedding], image_embeddings)
         best_match_idx = np.argmax(similarity)
         best_route = routes[best_match_idx] if similarity[0][best_match_idx] > 0.7 else None
