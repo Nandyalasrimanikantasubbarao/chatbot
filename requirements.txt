@@ -1,7 +1,6 @@
 flask
 flask-cors
-requests
 Pillow
+numpy
 torch
-git+https://github.com/openai/CLIP.git
-python-dotenv
+clip-by-openai
