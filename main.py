@@ -11,7 +11,7 @@ CORS(app)
 
 # Load model
 device = "cpu"
-model, preprocess = clip.load("ViT-B/32", device=device)
+# model, preprocess = clip.load("ViT-B/32", device=device)
 
 # Load precomputed image embeddings
 with open("image_embeddings.pkl", "rb") as f:
