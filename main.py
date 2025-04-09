@@ -4,25 +4,57 @@ import numpy as np
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 import os
+import logging
 
+logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
 # Load precomputed image embeddings and routes
-with open("image_embeddings.pkl", "rb") as f:
-    data = pickle.load(f)
-    image_embeddings = data["embeddings"]  # 2D NumPy array
-    routes = data["routes"]  # List of routes
+image_embeddings = None
+routes = None
+try:
+    with open("image_embeddings.pkl", "rb") as f:
+        data = pickle.load(f)
+        image_embeddings = data["embeddings"]  # 2D NumPy array
+        routes = data["routes"]  # List of routes
+    logging.info("Successfully loaded image_embeddings.pkl")
+except FileNotFoundError:
+    logging.error("Error: image_embeddings.pkl not found.")
+    raise
+except pickle.UnpicklingError as e:
+    logging.error(f"Error unpickling image_embeddings.pkl: {e}")
+    raise
+except Exception as e:
+    logging.error(f"Unexpected error loading image_embeddings.pkl: {e}")
+    raise
+
+# Load precomputed uploaded embedding (for testing)
+uploaded_embedding = None
+try:
+    with open("uploaded_embedding.pkl", "rb") as f:
+        uploaded_embedding = pickle.load(f)
+    logging.info("Successfully loaded uploaded_embedding.pkl")
+except FileNotFoundError:
+    logging.warning("Warning: uploaded_embedding.pkl not found. Using default.")
+    uploaded_embedding = np.zeros((1, 512))  # Default embedding if file is missing
+except pickle.UnpicklingError as e:
+    logging.error(f"Error unpickling uploaded_embedding.pkl: {e}. Using default.")
+    uploaded_embedding = np.zeros((1, 512))  # Fallback on unpickling error
+except Exception as e:
+    logging.error(f"Unexpected error loading uploaded_embedding.pkl: {e}. Using default.")
+    uploaded_embedding = np.zeros((1, 512))  # Generic fallback
+
+pattern_responses = {
+    "help": "Sure! I can help you. Ask about products, return policy, or upload jewelry image!",
+    "return policy": "You can return items within 15 days with original packaging.",
+    "bye": "Goodbye! Feel free to come back anytime!",
+}
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json()
     message = data.get("message", "").lower().strip()
-    pattern_responses = {
-        "help": "Sure! I can help you. Ask about products, return policy, or upload jewelry image!",
-        "return policy": "You can return items within 15 days with original packaging.",
-        "bye": "Goodbye! Feel free to come back anytime!",
-    }
     reply = pattern_responses.get(message, "Try asking for help or upload an image!")
     return jsonify({"reply": reply})
 
@@ -33,16 +65,13 @@ def upload():
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No selected image"}), 400
-    if file:
-        # Placeholder: Load precomputed embedding for the uploaded image
-        # This should be done offline and passed (e.g., via a form field or separate API)
+    if file and uploaded_embedding is not None and image_embeddings is not None:
+        # Save the uploaded file (for reference, though not used for embedding here)
         filepath = os.path.join('/tmp', file.filename)
         file.save(filepath)
-        with open("uploaded_embedding.pkl", "rb") as f:  # Precomputed offline
-            uploaded_embedding = pickle.load(f)
         os.remove(filepath)
 
-        # Compute similarity
+        # Use precomputed uploaded_embedding (for testing)
         similarity = cosine_similarity([uploaded_embedding], image_embeddings)
         best_match_idx = np.argmax(similarity)
         best_route = routes[best_match_idx] if similarity[0][best_match_idx] > 0.7 else None
@@ -51,7 +80,7 @@ def upload():
             return jsonify({"reply": "Found a matching product!", "route": best_route})
         return jsonify({"reply": "No matching product found.", "route": ""})
 
-    return jsonify({"error": "Invalid file"}), 400
+    return jsonify({"error": "Invalid file or embeddings not loaded"}), 400
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=4986)
