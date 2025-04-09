@@ -1,7 +1,8 @@
 flask
 flask-cors
 torch
+torchvision
 Pillow
 numpy
 scikit-learn
-openai-clip  # if using official repo from GitHub
+git+https://github.com/openai/CLIP.git
