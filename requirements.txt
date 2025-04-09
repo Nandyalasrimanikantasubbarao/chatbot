@@ -5,3 +5,4 @@ Pillow
 torch>=2.0.0
 clip-anytorch
 python-dotenv
+scikit-learn
