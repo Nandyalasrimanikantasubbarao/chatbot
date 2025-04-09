@@ -2,6 +2,6 @@ flask
 flask-cors
 requests
 Pillow
-torch==1.7.1
-git+https://github.com/openai/CLIP.git
+torch>=2.0.0
+clip-anytorch
 python-dotenv
